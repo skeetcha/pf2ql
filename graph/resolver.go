@@ -5,11 +5,10 @@ package graph
 // It serves as dependency injection for your app, add any dependencies you require here.
 
 import (
-	"database/sql/driver"
-
+	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 type Resolver struct {
-	db driver.Conn
+	Db *sql.DB
 }

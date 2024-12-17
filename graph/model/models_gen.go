@@ -2,25 +2,97 @@
 
 package model
 
-type Mutation struct {
-}
+import (
+	"fmt"
+	"io"
+	"strconv"
+)
 
-type NewTodo struct {
-	Text   string `json:"text"`
-	UserID string `json:"userId"`
-}
-
+//	 type Todo {
+//	  id: ID!
+//	  text: String!
+//	  done: Boolean!
+//	  user: User!
+//	}
+//
+//	type User {
+//	  id: ID!
+//	  name: String!
+//	}
+//
+//	type Query {
+//	  todos: [Todo!]!
+//	}
+//
+//	input NewTodo {
+//	  text: String!
+//	  userId: String!
+//	}
+//
+//	type Mutation {
+//	  createTodo(input: NewTodo!): Todo!
+//	}
 type Query struct {
 }
 
-type Todo struct {
-	ID   string `json:"id"`
-	Text string `json:"text"`
-	Done bool   `json:"done"`
-	User *User  `json:"user"`
+type Source struct {
+	ID            string      `json:"id"`
+	Name          string      `json:"name"`
+	ReleaseDate   string      `json:"releaseDate"`
+	ProductLine   ProductLine `json:"productLine"`
+	Link          string      `json:"link"`
+	ErrataDate    *string     `json:"errataDate,omitempty"`
+	ErrataVersion *float64    `json:"errataVersion,omitempty"`
+	ErrataLink    *string     `json:"errataLink,omitempty"`
 }
 
-type User struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+type ProductLine string
+
+const (
+	ProductLineRulebook      ProductLine = "RULEBOOK"
+	ProductLineSociety       ProductLine = "SOCIETY"
+	ProductLineLostomens     ProductLine = "LOSTOMENS"
+	ProductLineBlog          ProductLine = "BLOG"
+	ProductLineComic         ProductLine = "COMIC"
+	ProductLineAdventure     ProductLine = "ADVENTURE"
+	ProductLineAdventurepath ProductLine = "ADVENTUREPATH"
+)
+
+var AllProductLine = []ProductLine{
+	ProductLineRulebook,
+	ProductLineSociety,
+	ProductLineLostomens,
+	ProductLineBlog,
+	ProductLineComic,
+	ProductLineAdventure,
+	ProductLineAdventurepath,
+}
+
+func (e ProductLine) IsValid() bool {
+	switch e {
+	case ProductLineRulebook, ProductLineSociety, ProductLineLostomens, ProductLineBlog, ProductLineComic, ProductLineAdventure, ProductLineAdventurepath:
+		return true
+	}
+	return false
+}
+
+func (e ProductLine) String() string {
+	return string(e)
+}
+
+func (e *ProductLine) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ProductLine(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ProductLine", str)
+	}
+	return nil
+}
+
+func (e ProductLine) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
 }

@@ -6,35 +6,48 @@ package graph
 
 import (
 	"context"
-	"fmt"
-	"crypto/rand"
-	"math/big"
+	"log"
+	"errors"
 
 	"github.com/skeetcha/pf2ql/graph/model"
 )
 
-// CreateTodo is the resolver for the createTodo field.
-func (r *mutationResolver) CreateTodo(ctx context.Context, input model.NewTodo) (*model.Todo, error) {
-	randNumber, _ := rand.Int(rand.Reader, big.NewInt(100))
-	todo := &model.Todo{
-		Text: input.Text,
-		ID: fmt.Sprintf("T%d", randNumber),
-		User: &model.User{ID: input.UserID, Name: "user " + input.UserID},
+func getProductLineFromInt(l int) model.ProductLine {
+	return model.ProductLineRulebook
+}
+
+// FindSource is the resolver for the findSource field.
+func (r *queryResolver) FindSource(ctx context.Context, id *string) (*model.Source, error) {
+	rows, err := r.Db.Query("select * from sources where id=" + *id)
+
+	if err != nil {
+		log.Fatal(err)
+		return nil, err
 	}
-	r.todos = append(r.todos, todo)
-	return todo, nil
-}
 
-// Todos is the resolver for the todos field.
-func (r *queryResolver) Todos(ctx context.Context) ([]*model.Todo, error) {
-	return r.todos, nil
-}
+	for rows.Next() {
+		var id string
+		var name string
+		var releaseDate string
+		var productLine int
+		var link string
+		var errataVersion *float64
+		var errataLink *string
+		var errataDate *string
+		err = rows.Scan(&id, &name, &releaseDate, &productLine, &link, &errataVersion, &errataLink, &errataDate)
 
-// Mutation returns MutationResolver implementation.
-func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
+		if err != nil {
+			log.Fatal(err)
+			return nil, err
+		}
+
+		return &model.Source{ID: id, Name: name, ReleaseDate: releaseDate, ProductLine: getProductLineFromInt(productLine), Link: link, ErrataVersion: errataVersion, ErrataLink: errataLink, ErrataDate: errataDate}, nil
+	}
+
+	return nil, errors.New("couldn't find it")
+}
 
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
-type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
