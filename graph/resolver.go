@@ -5,9 +5,11 @@ package graph
 // It serves as dependency injection for your app, add any dependencies you require here.
 
 import (
-	"github.com/skeetcha/pf2ql/graph/model"
+	"database/sql/driver"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
-type Resolver struct{
-	todos []*model.Todo
+type Resolver struct {
+	db driver.Conn
 }
