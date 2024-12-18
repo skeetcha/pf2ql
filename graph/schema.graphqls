@@ -30,23 +30,96 @@ type Mutation {
 
 type Query {
   findSource(id: ID): Source
+  findSources(filter: SourceFilter): [Source]
 }
 
 scalar Date
 
 type Source {
-  id: ID!,
-  name: String!,
-  releaseDate: Date!,
-  productLine: ProductLine!,
-  link: String!,
-  errataDate: Date,
-  errataVersion: Float,
-  errataLink: String
+  id: ID!
+  name: String!
+  releaseDate: Date!
+  productLine: ProductLine!
+  link: String!
+  errataVersion: Float
+  errataDate: Date
+  isRemaster: Boolean!
+}
+
+input SourceFilter {
+  AND: SourceFilter
+  OR: SourceFilter
+  NOT: SourceFilter
+
+  id: IntCriterionInput
+  name: StringCriterionInput
+  releaseDate: DateCriterionInput
+  productLine: ProductLineCriterionInput
+  link: StringCriterionInput
+  errataVersion: FloatCriterionInput
+  errataDate: DateCriterionInput
+  isRemaster: BooleanCriterionInput
+}
+
+input IntCriterionInput {
+  value: Int!
+  modifier: CriterionModifier!
+}
+
+input StringCriterionInput {
+  value: String!
+  modifier: CriterionModifier!
+}
+
+input DateCriterionInput {
+  value: Date!
+  modifier: CriterionModifier!
+}
+
+input ProductLineCriterionInput {
+  value: ProductLine!
+  modifier: CriterionModifier!
+}
+
+input FloatCriterionInput {
+  value: Float!
+  modifier: CriterionModifier!
+}
+
+input BooleanCriterionInput {
+  value: Boolean!
+  modifier: CriterionModifier!
+}
+
+enum CriterionModifier {
+  "="
+  EQUALS
+  "!="
+  NOT_EQUALS
+  ">"
+  GREATER_THAN
+  "<"
+  LESS_THAN
+  "IS NULL"
+  IS_NULL
+  "IS NOT NULL"
+  IS_NOT_NULL
+  "INCLUDES ALL"
+  INCLUDES_ALL
+  INCLUDES
+  EXCLUDES
+  "MATCHES REGEX"
+  MATCHES_REGEX
+  "NOT MATCHES REGEX"
+  NOT_MATCHES_REGEX
+  ">= AND <="
+  BETWEEN
+  "< OR >"
+  NOT_BETWEEN
 }
 
 enum ProductLine {
-  RULEBOOK
+  RULEBOOKS
   SOCIETY
   LOSTOMENS
   BLOG

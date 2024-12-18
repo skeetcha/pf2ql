@@ -8,6 +8,31 @@ import (
 	"strconv"
 )
 
+type BooleanCriterionInput struct {
+	Value    bool              `json:"value"`
+	Modifier CriterionModifier `json:"modifier"`
+}
+
+type DateCriterionInput struct {
+	Value    string            `json:"value"`
+	Modifier CriterionModifier `json:"modifier"`
+}
+
+type FloatCriterionInput struct {
+	Value    float64           `json:"value"`
+	Modifier CriterionModifier `json:"modifier"`
+}
+
+type IntCriterionInput struct {
+	Value    int32             `json:"value"`
+	Modifier CriterionModifier `json:"modifier"`
+}
+
+type ProductLineCriterionInput struct {
+	Value    ProductLine       `json:"value"`
+	Modifier CriterionModifier `json:"modifier"`
+}
+
 //	 type Todo {
 //	  id: ID!
 //	  text: String!
@@ -41,15 +66,108 @@ type Source struct {
 	ReleaseDate   string      `json:"releaseDate"`
 	ProductLine   ProductLine `json:"productLine"`
 	Link          string      `json:"link"`
-	ErrataDate    *string     `json:"errataDate,omitempty"`
 	ErrataVersion *float64    `json:"errataVersion,omitempty"`
-	ErrataLink    *string     `json:"errataLink,omitempty"`
+	ErrataDate    *string     `json:"errataDate,omitempty"`
+	IsRemaster    bool        `json:"isRemaster"`
+}
+
+type SourceFilter struct {
+	And           *SourceFilter              `json:"AND,omitempty"`
+	Or            *SourceFilter              `json:"OR,omitempty"`
+	Not           *SourceFilter              `json:"NOT,omitempty"`
+	ID            *IntCriterionInput         `json:"id,omitempty"`
+	Name          *StringCriterionInput      `json:"name,omitempty"`
+	ReleaseDate   *DateCriterionInput        `json:"releaseDate,omitempty"`
+	ProductLine   *ProductLineCriterionInput `json:"productLine,omitempty"`
+	Link          *StringCriterionInput      `json:"link,omitempty"`
+	ErrataVersion *FloatCriterionInput       `json:"errataVersion,omitempty"`
+	ErrataDate    *DateCriterionInput        `json:"errataDate,omitempty"`
+	IsRemaster    *BooleanCriterionInput     `json:"isRemaster,omitempty"`
+}
+
+type StringCriterionInput struct {
+	Value    string            `json:"value"`
+	Modifier CriterionModifier `json:"modifier"`
+}
+
+type CriterionModifier string
+
+const (
+	// =
+	CriterionModifierEquals CriterionModifier = "EQUALS"
+	// !=
+	CriterionModifierNotEquals CriterionModifier = "NOT_EQUALS"
+	// >
+	CriterionModifierGreaterThan CriterionModifier = "GREATER_THAN"
+	// <
+	CriterionModifierLessThan CriterionModifier = "LESS_THAN"
+	// IS NULL
+	CriterionModifierIsNull CriterionModifier = "IS_NULL"
+	// IS NOT NULL
+	CriterionModifierIsNotNull CriterionModifier = "IS_NOT_NULL"
+	// INCLUDES ALL
+	CriterionModifierIncludesAll CriterionModifier = "INCLUDES_ALL"
+	CriterionModifierIncludes    CriterionModifier = "INCLUDES"
+	CriterionModifierExcludes    CriterionModifier = "EXCLUDES"
+	// MATCHES REGEX
+	CriterionModifierMatchesRegex CriterionModifier = "MATCHES_REGEX"
+	// NOT MATCHES REGEX
+	CriterionModifierNotMatchesRegex CriterionModifier = "NOT_MATCHES_REGEX"
+	// >= AND <=
+	CriterionModifierBetween CriterionModifier = "BETWEEN"
+	// < OR >
+	CriterionModifierNotBetween CriterionModifier = "NOT_BETWEEN"
+)
+
+var AllCriterionModifier = []CriterionModifier{
+	CriterionModifierEquals,
+	CriterionModifierNotEquals,
+	CriterionModifierGreaterThan,
+	CriterionModifierLessThan,
+	CriterionModifierIsNull,
+	CriterionModifierIsNotNull,
+	CriterionModifierIncludesAll,
+	CriterionModifierIncludes,
+	CriterionModifierExcludes,
+	CriterionModifierMatchesRegex,
+	CriterionModifierNotMatchesRegex,
+	CriterionModifierBetween,
+	CriterionModifierNotBetween,
+}
+
+func (e CriterionModifier) IsValid() bool {
+	switch e {
+	case CriterionModifierEquals, CriterionModifierNotEquals, CriterionModifierGreaterThan, CriterionModifierLessThan, CriterionModifierIsNull, CriterionModifierIsNotNull, CriterionModifierIncludesAll, CriterionModifierIncludes, CriterionModifierExcludes, CriterionModifierMatchesRegex, CriterionModifierNotMatchesRegex, CriterionModifierBetween, CriterionModifierNotBetween:
+		return true
+	}
+	return false
+}
+
+func (e CriterionModifier) String() string {
+	return string(e)
+}
+
+func (e *CriterionModifier) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = CriterionModifier(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid CriterionModifier", str)
+	}
+	return nil
+}
+
+func (e CriterionModifier) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 type ProductLine string
 
 const (
-	ProductLineRulebook      ProductLine = "RULEBOOK"
+	ProductLineRulebooks     ProductLine = "RULEBOOKS"
 	ProductLineSociety       ProductLine = "SOCIETY"
 	ProductLineLostomens     ProductLine = "LOSTOMENS"
 	ProductLineBlog          ProductLine = "BLOG"
@@ -59,7 +177,7 @@ const (
 )
 
 var AllProductLine = []ProductLine{
-	ProductLineRulebook,
+	ProductLineRulebooks,
 	ProductLineSociety,
 	ProductLineLostomens,
 	ProductLineBlog,
@@ -70,7 +188,7 @@ var AllProductLine = []ProductLine{
 
 func (e ProductLine) IsValid() bool {
 	switch e {
-	case ProductLineRulebook, ProductLineSociety, ProductLineLostomens, ProductLineBlog, ProductLineComic, ProductLineAdventure, ProductLineAdventurepath:
+	case ProductLineRulebooks, ProductLineSociety, ProductLineLostomens, ProductLineBlog, ProductLineComic, ProductLineAdventure, ProductLineAdventurepath:
 		return true
 	}
 	return false

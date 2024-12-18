@@ -47,14 +47,15 @@ type DirectiveRoot struct {
 
 type ComplexityRoot struct {
 	Query struct {
-		FindSource func(childComplexity int, id *string) int
+		FindSource  func(childComplexity int, id *string) int
+		FindSources func(childComplexity int, filter *model.SourceFilter) int
 	}
 
 	Source struct {
 		ErrataDate    func(childComplexity int) int
-		ErrataLink    func(childComplexity int) int
 		ErrataVersion func(childComplexity int) int
 		ID            func(childComplexity int) int
+		IsRemaster    func(childComplexity int) int
 		Link          func(childComplexity int) int
 		Name          func(childComplexity int) int
 		ProductLine   func(childComplexity int) int
@@ -64,6 +65,7 @@ type ComplexityRoot struct {
 
 type QueryResolver interface {
 	FindSource(ctx context.Context, id *string) (*model.Source, error)
+	FindSources(ctx context.Context, filter *model.SourceFilter) ([]*model.Source, error)
 }
 
 type executableSchema struct {
@@ -97,19 +99,24 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.FindSource(childComplexity, args["id"].(*string)), true
 
+	case "Query.findSources":
+		if e.complexity.Query.FindSources == nil {
+			break
+		}
+
+		args, err := ec.field_Query_findSources_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.FindSources(childComplexity, args["filter"].(*model.SourceFilter)), true
+
 	case "Source.errataDate":
 		if e.complexity.Source.ErrataDate == nil {
 			break
 		}
 
 		return e.complexity.Source.ErrataDate(childComplexity), true
-
-	case "Source.errataLink":
-		if e.complexity.Source.ErrataLink == nil {
-			break
-		}
-
-		return e.complexity.Source.ErrataLink(childComplexity), true
 
 	case "Source.errataVersion":
 		if e.complexity.Source.ErrataVersion == nil {
@@ -124,6 +131,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Source.ID(childComplexity), true
+
+	case "Source.isRemaster":
+		if e.complexity.Source.IsRemaster == nil {
+			break
+		}
+
+		return e.complexity.Source.IsRemaster(childComplexity), true
 
 	case "Source.link":
 		if e.complexity.Source.Link == nil {
@@ -160,7 +174,15 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
-	inputUnmarshalMap := graphql.BuildUnmarshalerMap()
+	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
+		ec.unmarshalInputBooleanCriterionInput,
+		ec.unmarshalInputDateCriterionInput,
+		ec.unmarshalInputFloatCriterionInput,
+		ec.unmarshalInputIntCriterionInput,
+		ec.unmarshalInputProductLineCriterionInput,
+		ec.unmarshalInputSourceFilter,
+		ec.unmarshalInputStringCriterionInput,
+	)
 	first := true
 
 	switch opCtx.Operation.Operation {
@@ -307,6 +329,29 @@ func (ec *executionContext) field_Query_findSource_argsID(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Query_findSources_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Query_findSources_argsFilter(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_findSources_argsFilter(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (*model.SourceFilter, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("filter"))
+	if tmp, ok := rawArgs["filter"]; ok {
+		return ec.unmarshalOSourceFilter2ᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐSourceFilter(ctx, tmp)
+	}
+
+	var zeroVal *model.SourceFilter
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field___Type_enumValues_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -407,12 +452,12 @@ func (ec *executionContext) fieldContext_Query_findSource(ctx context.Context, f
 				return ec.fieldContext_Source_productLine(ctx, field)
 			case "link":
 				return ec.fieldContext_Source_link(ctx, field)
-			case "errataDate":
-				return ec.fieldContext_Source_errataDate(ctx, field)
 			case "errataVersion":
 				return ec.fieldContext_Source_errataVersion(ctx, field)
-			case "errataLink":
-				return ec.fieldContext_Source_errataLink(ctx, field)
+			case "errataDate":
+				return ec.fieldContext_Source_errataDate(ctx, field)
+			case "isRemaster":
+				return ec.fieldContext_Source_isRemaster(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Source", field.Name)
 		},
@@ -425,6 +470,76 @@ func (ec *executionContext) fieldContext_Query_findSource(ctx context.Context, f
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_findSource_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_findSources(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_findSources(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().FindSources(rctx, fc.Args["filter"].(*model.SourceFilter))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Source)
+	fc.Result = res
+	return ec.marshalOSource2ᚕᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐSource(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_findSources(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Source_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Source_name(ctx, field)
+			case "releaseDate":
+				return ec.fieldContext_Source_releaseDate(ctx, field)
+			case "productLine":
+				return ec.fieldContext_Source_productLine(ctx, field)
+			case "link":
+				return ec.fieldContext_Source_link(ctx, field)
+			case "errataVersion":
+				return ec.fieldContext_Source_errataVersion(ctx, field)
+			case "errataDate":
+				return ec.fieldContext_Source_errataDate(ctx, field)
+			case "isRemaster":
+				return ec.fieldContext_Source_isRemaster(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Source", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_findSources_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -780,47 +895,6 @@ func (ec *executionContext) fieldContext_Source_link(_ context.Context, field gr
 	return fc, nil
 }
 
-func (ec *executionContext) _Source_errataDate(ctx context.Context, field graphql.CollectedField, obj *model.Source) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Source_errataDate(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.ErrataDate, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*string)
-	fc.Result = res
-	return ec.marshalODate2ᚖstring(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Source_errataDate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Source",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Date does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Source_errataVersion(ctx context.Context, field graphql.CollectedField, obj *model.Source) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Source_errataVersion(ctx, field)
 	if err != nil {
@@ -862,8 +936,8 @@ func (ec *executionContext) fieldContext_Source_errataVersion(_ context.Context,
 	return fc, nil
 }
 
-func (ec *executionContext) _Source_errataLink(ctx context.Context, field graphql.CollectedField, obj *model.Source) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Source_errataLink(ctx, field)
+func (ec *executionContext) _Source_errataDate(ctx context.Context, field graphql.CollectedField, obj *model.Source) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Source_errataDate(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -876,7 +950,7 @@ func (ec *executionContext) _Source_errataLink(ctx context.Context, field graphq
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ErrataLink, nil
+		return obj.ErrataDate, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -887,17 +961,61 @@ func (ec *executionContext) _Source_errataLink(ctx context.Context, field graphq
 	}
 	res := resTmp.(*string)
 	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+	return ec.marshalODate2ᚖstring(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Source_errataLink(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Source_errataDate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Source",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
+			return nil, errors.New("field of type Date does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Source_isRemaster(ctx context.Context, field graphql.CollectedField, obj *model.Source) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Source_isRemaster(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.IsRemaster, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Source_isRemaster(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Source",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -2676,6 +2794,307 @@ func (ec *executionContext) fieldContext___Type_specifiedByURL(_ context.Context
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputBooleanCriterionInput(ctx context.Context, obj interface{}) (model.BooleanCriterionInput, error) {
+	var it model.BooleanCriterionInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"value", "modifier"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "value":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Value = data
+		case "modifier":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modifier"))
+			data, err := ec.unmarshalNCriterionModifier2githubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐCriterionModifier(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Modifier = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputDateCriterionInput(ctx context.Context, obj interface{}) (model.DateCriterionInput, error) {
+	var it model.DateCriterionInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"value", "modifier"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "value":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
+			data, err := ec.unmarshalNDate2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Value = data
+		case "modifier":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modifier"))
+			data, err := ec.unmarshalNCriterionModifier2githubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐCriterionModifier(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Modifier = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputFloatCriterionInput(ctx context.Context, obj interface{}) (model.FloatCriterionInput, error) {
+	var it model.FloatCriterionInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"value", "modifier"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "value":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
+			data, err := ec.unmarshalNFloat2float64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Value = data
+		case "modifier":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modifier"))
+			data, err := ec.unmarshalNCriterionModifier2githubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐCriterionModifier(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Modifier = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputIntCriterionInput(ctx context.Context, obj interface{}) (model.IntCriterionInput, error) {
+	var it model.IntCriterionInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"value", "modifier"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "value":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
+			data, err := ec.unmarshalNInt2int32(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Value = data
+		case "modifier":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modifier"))
+			data, err := ec.unmarshalNCriterionModifier2githubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐCriterionModifier(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Modifier = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputProductLineCriterionInput(ctx context.Context, obj interface{}) (model.ProductLineCriterionInput, error) {
+	var it model.ProductLineCriterionInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"value", "modifier"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "value":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
+			data, err := ec.unmarshalNProductLine2githubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐProductLine(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Value = data
+		case "modifier":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modifier"))
+			data, err := ec.unmarshalNCriterionModifier2githubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐCriterionModifier(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Modifier = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputSourceFilter(ctx context.Context, obj interface{}) (model.SourceFilter, error) {
+	var it model.SourceFilter
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"AND", "OR", "NOT", "id", "name", "releaseDate", "productLine", "link", "errataVersion", "errataDate", "isRemaster"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "AND":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("AND"))
+			data, err := ec.unmarshalOSourceFilter2ᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐSourceFilter(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.And = data
+		case "OR":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("OR"))
+			data, err := ec.unmarshalOSourceFilter2ᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐSourceFilter(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Or = data
+		case "NOT":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("NOT"))
+			data, err := ec.unmarshalOSourceFilter2ᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐSourceFilter(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Not = data
+		case "id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			data, err := ec.unmarshalOIntCriterionInput2ᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐIntCriterionInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ID = data
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalOStringCriterionInput2ᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐStringCriterionInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "releaseDate":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("releaseDate"))
+			data, err := ec.unmarshalODateCriterionInput2ᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐDateCriterionInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ReleaseDate = data
+		case "productLine":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("productLine"))
+			data, err := ec.unmarshalOProductLineCriterionInput2ᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐProductLineCriterionInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProductLine = data
+		case "link":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("link"))
+			data, err := ec.unmarshalOStringCriterionInput2ᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐStringCriterionInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Link = data
+		case "errataVersion":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("errataVersion"))
+			data, err := ec.unmarshalOFloatCriterionInput2ᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐFloatCriterionInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ErrataVersion = data
+		case "errataDate":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("errataDate"))
+			data, err := ec.unmarshalODateCriterionInput2ᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐDateCriterionInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ErrataDate = data
+		case "isRemaster":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("isRemaster"))
+			data, err := ec.unmarshalOBooleanCriterionInput2ᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐBooleanCriterionInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.IsRemaster = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputStringCriterionInput(ctx context.Context, obj interface{}) (model.StringCriterionInput, error) {
+	var it model.StringCriterionInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"value", "modifier"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "value":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Value = data
+		case "modifier":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("modifier"))
+			data, err := ec.unmarshalNCriterionModifier2githubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐCriterionModifier(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Modifier = data
+		}
+	}
+
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -2713,6 +3132,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_findSource(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "findSources":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_findSources(ctx, field)
 				return res
 			}
 
@@ -2789,12 +3227,15 @@ func (ec *executionContext) _Source(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "errataDate":
-			out.Values[i] = ec._Source_errataDate(ctx, field, obj)
 		case "errataVersion":
 			out.Values[i] = ec._Source_errataVersion(ctx, field, obj)
-		case "errataLink":
-			out.Values[i] = ec._Source_errataLink(ctx, field, obj)
+		case "errataDate":
+			out.Values[i] = ec._Source_errataDate(ctx, field, obj)
+		case "isRemaster":
+			out.Values[i] = ec._Source_isRemaster(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3159,6 +3600,16 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) unmarshalNCriterionModifier2githubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐCriterionModifier(ctx context.Context, v interface{}) (model.CriterionModifier, error) {
+	var res model.CriterionModifier
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNCriterionModifier2githubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐCriterionModifier(ctx context.Context, sel ast.SelectionSet, v model.CriterionModifier) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) unmarshalNDate2string(ctx context.Context, v interface{}) (string, error) {
 	res, err := graphql.UnmarshalString(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -3174,6 +3625,21 @@ func (ec *executionContext) marshalNDate2string(ctx context.Context, sel ast.Sel
 	return res
 }
 
+func (ec *executionContext) unmarshalNFloat2float64(ctx context.Context, v interface{}) (float64, error) {
+	res, err := graphql.UnmarshalFloatContext(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNFloat2float64(ctx context.Context, sel ast.SelectionSet, v float64) graphql.Marshaler {
+	res := graphql.MarshalFloatContext(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return graphql.WrapContextMarshaler(ctx, res)
+}
+
 func (ec *executionContext) unmarshalNID2string(ctx context.Context, v interface{}) (string, error) {
 	res, err := graphql.UnmarshalID(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -3181,6 +3647,21 @@ func (ec *executionContext) unmarshalNID2string(ctx context.Context, v interface
 
 func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
 	res := graphql.MarshalID(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
+}
+
+func (ec *executionContext) unmarshalNInt2int32(ctx context.Context, v interface{}) (int32, error) {
+	res, err := graphql.UnmarshalInt32(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNInt2int32(ctx context.Context, sel ast.SelectionSet, v int32) graphql.Marshaler {
+	res := graphql.MarshalInt32(v)
 	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -3493,6 +3974,14 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	return res
 }
 
+func (ec *executionContext) unmarshalOBooleanCriterionInput2ᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐBooleanCriterionInput(ctx context.Context, v interface{}) (*model.BooleanCriterionInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputBooleanCriterionInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalODate2ᚖstring(ctx context.Context, v interface{}) (*string, error) {
 	if v == nil {
 		return nil, nil
@@ -3507,6 +3996,14 @@ func (ec *executionContext) marshalODate2ᚖstring(ctx context.Context, sel ast.
 	}
 	res := graphql.MarshalString(*v)
 	return res
+}
+
+func (ec *executionContext) unmarshalODateCriterionInput2ᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐDateCriterionInput(ctx context.Context, v interface{}) (*model.DateCriterionInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputDateCriterionInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalOFloat2ᚖfloat64(ctx context.Context, v interface{}) (*float64, error) {
@@ -3525,6 +4022,14 @@ func (ec *executionContext) marshalOFloat2ᚖfloat64(ctx context.Context, sel as
 	return graphql.WrapContextMarshaler(ctx, res)
 }
 
+func (ec *executionContext) unmarshalOFloatCriterionInput2ᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐFloatCriterionInput(ctx context.Context, v interface{}) (*model.FloatCriterionInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputFloatCriterionInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v interface{}) (*string, error) {
 	if v == nil {
 		return nil, nil
@@ -3541,11 +4046,76 @@ func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) unmarshalOIntCriterionInput2ᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐIntCriterionInput(ctx context.Context, v interface{}) (*model.IntCriterionInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputIntCriterionInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOProductLineCriterionInput2ᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐProductLineCriterionInput(ctx context.Context, v interface{}) (*model.ProductLineCriterionInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputProductLineCriterionInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOSource2ᚕᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐSource(ctx context.Context, sel ast.SelectionSet, v []*model.Source) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOSource2ᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐSource(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	return ret
+}
+
 func (ec *executionContext) marshalOSource2ᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐSource(ctx context.Context, sel ast.SelectionSet, v *model.Source) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._Source(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOSourceFilter2ᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐSourceFilter(ctx context.Context, v interface{}) (*model.SourceFilter, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputSourceFilter(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v interface{}) (*string, error) {
@@ -3562,6 +4132,14 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	}
 	res := graphql.MarshalString(*v)
 	return res
+}
+
+func (ec *executionContext) unmarshalOStringCriterionInput2ᚖgithubᚗcomᚋskeetchaᚋpf2qlᚋgraphᚋmodelᚐStringCriterionInput(ctx context.Context, v interface{}) (*model.StringCriterionInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputStringCriterionInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValueᚄ(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {

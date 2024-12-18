@@ -6,8 +6,7 @@ package graph
 
 import (
 	"context"
-	"errors"
-	"log"
+	"fmt"
 
 	"github.com/skeetcha/pf2ql/graph/model"
 )
@@ -17,30 +16,52 @@ func (r *queryResolver) FindSource(ctx context.Context, id *string) (*model.Sour
 	rows, err := r.Db.Query("select * from sources where id=" + *id)
 
 	if err != nil {
-		log.Fatal(err)
 		return nil, err
 	}
 
 	for rows.Next() {
-		var id string
-		var name string
-		var releaseDate string
-		var productLine string
-		var link string
-		var errataVersion *float64
-		var errataLink *string
-		var errataDate *string
-		err = rows.Scan(&id, &name, &releaseDate, &productLine, &link, &errataVersion, &errataLink, &errataDate)
+		val, err := GetData(rows)
 
 		if err != nil {
-			log.Fatal(err)
 			return nil, err
 		}
 
-		return &model.Source{ID: id, Name: name, ReleaseDate: releaseDate, ProductLine: model.ProductLine(productLine), Link: link, ErrataVersion: errataVersion, ErrataLink: errataLink, ErrataDate: errataDate}, nil
+		return val, nil
 	}
 
-	return nil, errors.New("couldn't find it")
+	return nil, fmt.Errorf("id %s not found", *id)
+}
+
+// FindSources is the resolver for the findSources field.
+func (r *queryResolver) FindSources(ctx context.Context, filter *model.SourceFilter) ([]*model.Source, error) {
+	str := "select * from sources where "
+	val, err := GetFilterString(filter)
+
+	if err != nil {
+		return nil, err
+	}
+
+	str += val
+
+	rows, err := r.Db.Query(str)
+
+	if err != nil {
+		return nil, err
+	}
+
+	sources := []*model.Source{}
+
+	for rows.Next() {
+		data, err := GetData(rows)
+
+		if err != nil {
+			return nil, err
+		}
+
+		sources = append(sources, data)
+	}
+
+	return sources, nil
 }
 
 // Query returns QueryResolver implementation.
