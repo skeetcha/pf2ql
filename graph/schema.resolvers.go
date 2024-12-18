@@ -6,15 +6,11 @@ package graph
 
 import (
 	"context"
-	"log"
 	"errors"
+	"log"
 
 	"github.com/skeetcha/pf2ql/graph/model"
 )
-
-func getProductLineFromInt(l int) model.ProductLine {
-	return model.ProductLineRulebook
-}
 
 // FindSource is the resolver for the findSource field.
 func (r *queryResolver) FindSource(ctx context.Context, id *string) (*model.Source, error) {
@@ -29,7 +25,7 @@ func (r *queryResolver) FindSource(ctx context.Context, id *string) (*model.Sour
 		var id string
 		var name string
 		var releaseDate string
-		var productLine int
+		var productLine string
 		var link string
 		var errataVersion *float64
 		var errataLink *string
@@ -41,7 +37,7 @@ func (r *queryResolver) FindSource(ctx context.Context, id *string) (*model.Sour
 			return nil, err
 		}
 
-		return &model.Source{ID: id, Name: name, ReleaseDate: releaseDate, ProductLine: getProductLineFromInt(productLine), Link: link, ErrataVersion: errataVersion, ErrataLink: errataLink, ErrataDate: errataDate}, nil
+		return &model.Source{ID: id, Name: name, ReleaseDate: releaseDate, ProductLine: model.ProductLine(productLine), Link: link, ErrataVersion: errataVersion, ErrataLink: errataLink, ErrataDate: errataDate}, nil
 	}
 
 	return nil, errors.New("couldn't find it")
