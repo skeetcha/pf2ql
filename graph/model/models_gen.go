@@ -33,30 +33,6 @@ type ProductLineCriterionInput struct {
 	Modifier CriterionModifier `json:"modifier"`
 }
 
-//	 type Todo {
-//	  id: ID!
-//	  text: String!
-//	  done: Boolean!
-//	  user: User!
-//	}
-//
-//	type User {
-//	  id: ID!
-//	  name: String!
-//	}
-//
-//	type Query {
-//	  todos: [Todo!]!
-//	}
-//
-//	input NewTodo {
-//	  text: String!
-//	  userId: String!
-//	}
-//
-//	type Mutation {
-//	  createTodo(input: NewTodo!): Todo!
-//	}
 type Query struct {
 }
 
@@ -167,28 +143,28 @@ func (e CriterionModifier) MarshalGQL(w io.Writer) {
 type ProductLine string
 
 const (
-	ProductLineRulebooks     ProductLine = "RULEBOOKS"
-	ProductLineSociety       ProductLine = "SOCIETY"
-	ProductLineLostomens     ProductLine = "LOSTOMENS"
-	ProductLineBlog          ProductLine = "BLOG"
-	ProductLineComic         ProductLine = "COMIC"
-	ProductLineAdventure     ProductLine = "ADVENTURE"
-	ProductLineAdventurepath ProductLine = "ADVENTUREPATH"
+	ProductLineRulebooks      ProductLine = "RULEBOOKS"
+	ProductLineSociety        ProductLine = "SOCIETY"
+	ProductLineLostomens      ProductLine = "LOSTOMENS"
+	ProductLineBlogposts      ProductLine = "BLOGPOSTS"
+	ProductLineComics         ProductLine = "COMICS"
+	ProductLineAdventures     ProductLine = "ADVENTURES"
+	ProductLineAdventurepaths ProductLine = "ADVENTUREPATHS"
 )
 
 var AllProductLine = []ProductLine{
 	ProductLineRulebooks,
 	ProductLineSociety,
 	ProductLineLostomens,
-	ProductLineBlog,
-	ProductLineComic,
-	ProductLineAdventure,
-	ProductLineAdventurepath,
+	ProductLineBlogposts,
+	ProductLineComics,
+	ProductLineAdventures,
+	ProductLineAdventurepaths,
 }
 
 func (e ProductLine) IsValid() bool {
 	switch e {
-	case ProductLineRulebooks, ProductLineSociety, ProductLineLostomens, ProductLineBlog, ProductLineComic, ProductLineAdventure, ProductLineAdventurepath:
+	case ProductLineRulebooks, ProductLineSociety, ProductLineLostomens, ProductLineBlogposts, ProductLineComics, ProductLineAdventures, ProductLineAdventurepaths:
 		return true
 	}
 	return false
